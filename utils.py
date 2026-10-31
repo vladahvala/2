@@ -19,8 +19,8 @@ class Utils():
 
         pygame.init()
 
-        self.width = 1280
-        self.height = 1280
+        self.width = 900
+        self.height = 700
 
         self.screen = pygame.display.set_mode((self.width, self.height), DOUBLEBUF, 16)
         self.dt = 0
