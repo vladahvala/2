@@ -1,7 +1,10 @@
+
+import math
 from pygame import Vector2
 
 import pygame
 from utils import utils
+from Circle import Circle
 
 class Ring:
     def __init__(self,radius, color, noteData, maxTime, angle,rotateDir):
@@ -19,6 +22,22 @@ class Ring:
         self.justPlay = {}
         for i, start_time in enumerate(self.noteData['start_times']):
             self.justPlay[i] = False
+
+        self.createCircles()
+
+    def createCircles(self):
+      self.circles = []
+      for i in range(len(self.noteData['start_times'])):
+          start_time = self.noteData['start_times'][i]
+          velocity = self.noteData['velocities'][i]
+          if velocity > 0:
+              radius = 5
+              angle = utils.map_value(start_time, self.minTime, self.maxTime, 0, 360 * self.rotateDir) + self.angle
+              rad = math.radians(angle)
+              x = math.cos(rad) * self.radius
+              y = math.sin(rad) * self.radius
+              pos = self.center + Vector2(x, y)
+              self.circles.append(Circle(pos, radius))
 
     def playSound(self, time):
         # Update justPlay status based on start_times and time
@@ -59,3 +78,6 @@ class Ring:
 
     def draw(self):
         pygame.draw.circle(utils.screen, self.color, self.center, self.radius, 2)
+        for c in self.circles:
+          c.draw()
+
