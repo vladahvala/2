@@ -12,6 +12,7 @@ class Circle:
         self.color = color      # колір спалаху (колір кільця)
         self.outline = outline  # колір контуру в спокої (колір доріжки, приглушений)
         self.pulse = 0.0  # 1.0 у момент note_on, згасає до 0
+        self.hidden = False  # true, якщо доріжку цієї ноти вимкнено клавішею
 
     def trigger(self):
         self.pulse = 1.0
@@ -20,6 +21,8 @@ class Circle:
         self.pulse = max(0.0, self.pulse - dt * 2)
 
     def draw(self):
+        if self.hidden:
+            return
         if self.pulse > 0:
             r = int(self.radius * (1 + self.pulse))
             pygame.draw.circle(utils.screen, self.color, self.pos, r)

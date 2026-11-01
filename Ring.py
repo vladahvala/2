@@ -17,7 +17,7 @@ class Ring:
         self.maxTime = maxTime
         self.rotateDir = rotateDir
         self.startAngle = startAngle
-        self.center = Vector2(utils.width / 2, utils.height / 2)
+        self.center = Vector2(utils.center)
         self.dots = []
         self.ball = Ball(self._pos_at(0), 8, color)
         self.visible = False  # з'являється, коли вперше звучить нота цієї висоти

@@ -18,8 +18,10 @@ class Utils():
 
         pygame.init()
 
-        self.width = 900
+        self.hud_width = 320                   # ліва панель з інформацією
+        self.width = 900 + self.hud_width      # область анімації 900 x 700 праворуч від панелі
         self.height = 700
+        self.center = Vector2(self.hud_width + 900 / 2, self.height / 2)  # центр кілець
 
         self.screen = pygame.display.set_mode((self.width, self.height), DOUBLEBUF, 16)
         self.dt = 0
