@@ -1,8 +1,11 @@
 
 import math
+import random
 from pygame import Vector2
 
 import pygame
+
+from Ball import Ball
 from utils import utils
 from Circle import Circle
 
@@ -24,6 +27,7 @@ class Ring:
             self.justPlay[i] = False
 
         self.createCircles()
+        self.ball = Ball(self.center, 8, utils.hueToRGB(random.uniform(0, 1)))
 
     def createCircles(self):
       self.circles = []
@@ -73,11 +77,22 @@ class Ring:
           self.justPlay[i] = False
 
     
+    
     def update(self, time):
+
+        angle = utils.map_value(time - 0.25, self.minTime, self.maxTime, 0, 360 * self.rotateDir) + self.angle
+        rad = math.radians(angle)
+        x = math.cos(rad) * self.radius
+        y = math.sin(rad) * self.radius
+        newPos = self.center + Vector2(x, y)
+        self.ball.pos = newPos
+
         self.playSound(time)
 
     def draw(self):
         pygame.draw.circle(utils.screen, self.color, self.center, self.radius, 2)
         for c in self.circles:
           c.draw()
+        
+        self.ball.draw()
 
