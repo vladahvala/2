@@ -28,6 +28,7 @@ class Ring:
 
         self.createCircles()
         self.ball = Ball(self.center, 8, utils.hueToRGB(random.uniform(0, 1)))
+        self.showTime = False
 
     def createCircles(self):
       self.circles = []
@@ -87,9 +88,15 @@ class Ring:
         newPos = self.center + Vector2(x, y)
         self.ball.pos = newPos
 
+        if not self.showTime:
+          return
+        
         self.playSound(time)
 
     def draw(self):
+        if not self.showTime:
+          return
+           
         pygame.draw.circle(utils.screen, self.color, self.center, self.radius, 2)
         for c in self.circles:
           c.draw()

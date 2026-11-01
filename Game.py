@@ -32,8 +32,34 @@ class Game:
           self.rings.append(ring)
           radius += (maxWidth - 50) / len(self.notes_dict.values())
 
+      # show rings by time
+      self.showTimeInterval = 0
+      self.showTimeList = {}
+      t = 0
+      for i in range(len(self.notes_dict)):
+          self.showTimeList[i] = t
+          if i > 13:
+              t += 1
+              continue
+          t += 3
+      self.showTimeList = self.shuffle_dict(self.showTimeList)
+
+    
+    def shuffle_dict(self, d):
+        # Convert dictionary items to a list
+        items = list(d.items())
+        # Shuffle the list of items
+        random.shuffle(items)
+        # Create a new dictionary from the shuffled list of items
+        shuffled_dict = dict(items)
+        return shuffled_dict
 
     def update(self):
+        self.showTimeInterval += utils.deltaTime()
+        for i, showTime in enumerate(self.showTimeList.values()):
+            if showTime < self.showTimeInterval:
+                self.rings[i].showTime = True
+
         self.time += utils.clock.get_time() / 1000.0
         if self.time >= self.maxTime:
             self.time = 0
