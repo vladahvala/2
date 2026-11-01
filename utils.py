@@ -3,7 +3,6 @@ import colorsys
 import pygame
 import math
 
-from Box2D import b2World
 from pygame.locals import *
 
 from pygame import Vector2, mixer, time
@@ -28,8 +27,11 @@ class Utils():
 
         #midi player
         pygame.midi.init()
-        self.volumeScale = 10
-        self.midiPlayer = pygame.midi.Output(0)
+        try:
+            self.midiPlayer = pygame.midi.Output(pygame.midi.get_default_output_id())
+        except Exception as e:  # немає MIDI-синтезатора: працюємо без звуку
+            print("MIDI output unavailable, running without sound:", e)
+            self.midiPlayer = None
 
 
     def initDeltaTime(self):  # calculate deltaTime

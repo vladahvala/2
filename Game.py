@@ -1,73 +1,111 @@
-import random
-
+from Effects import Ripple
 from Ring import Ring
-from midi import list_notes_from_midi
+from midi import load_events
 from utils import utils
+
+# колір за доріжкою MIDI (індекс доріжки у файлі: 1 = "one:", 2 = "two:")
+TRACK_COLORS = {1: (255, 150, 60), 2: (90, 180, 255)}
+# швидкість розходження хвилі за доріжкою
+TRACK_RIPPLE_SPEED = {1: 160, 2: 90}
 
 
 class Game:
     def __init__(self):
-      self.notes_dict = list_notes_from_midi("menuet-en-sol.mid")
-      for note in self.notes_dict.values():
-           print(note)
-      
-      self.time = 0
-      self.minTime = 0
-      self.maxTime = 19.8 # duration of the file
+        # events: [{track, note, start, duration, velocity}, ...] відсортовані за start
+        self.events, self.maxTime = load_events("jellyfish.mid")
 
-      self.angle = 0
+        self.time = 0.0
+        self.next_event = 0      # індекс наступної події, яка ще не спрацювала
+        self.active = []         # ноти, що зараз звучать: [(кінець_у_секундах, подія)]
+        self.ripples = []
 
-      self.rings = []
-      radius = 50
-      hue = 0
-      hueStep = 1 / len(self.notes_dict.values())
-      # self.list_notes = self.shuffle_dict(self.list_notes)
-      rotateDir = 1
-      maxWidth = min(utils.width, utils.height) / 2
-      for note in reversed(self.notes_dict.values()):
-          ring = Ring(radius, utils.hueToRGB(hue), self.notes_dict[note['name']], self.maxTime,
-                      random.uniform(0, 360), rotateDir)
-          rotateDir *= -1
-          hue += hueStep
-          self.rings.append(ring)
-          radius += (maxWidth - 50) / len(self.notes_dict.values())
+        # одне кільце на кожну унікальну висоту; низькі ноти всередині, високі зовні
+        pitches = sorted({e['note'] for e in self.events})
+        maxRadius = min(utils.width, utils.height) / 2 - 20
+        minRadius = 50
+        step = (maxRadius - minRadius) / max(len(pitches) - 1, 1)
 
-      # show rings by time
-      self.showTimeInterval = 0
-      self.showTimeList = {}
-      t = 0
-      for i in range(len(self.notes_dict)):
-          self.showTimeList[i] = t
-          if i > 13:
-              t += 1
-              continue
-          t += 3
-      self.showTimeList = self.shuffle_dict(self.showTimeList)
+        self.rings = {}
+        rotateDir = 1
+        for i, pitch in enumerate(pitches):
+            hue = i / len(pitches)                     # висота -> колір
+            self.rings[pitch] = Ring(minRadius + i * step,   # висота -> радіус
+                                     utils.hueToRGB(hue),
+                                     self.maxTime, rotateDir)
+            rotateDir *= -1
 
-    
-    def shuffle_dict(self, d):
-        # Convert dictionary items to a list
-        items = list(d.items())
-        # Shuffle the list of items
-        random.shuffle(items)
-        # Create a new dictionary from the shuffled list of items
-        shuffled_dict = dict(items)
-        return shuffled_dict
+        # кожній події відповідає точка на кільці своєї висоти
+        for e in self.events:
+            color = TRACK_COLORS.get(e['track'], (255, 255, 255))
+            e['dot'] = self.rings[e['note']].add_event(e, color)
+
+    # ---------- звук ----------
+    def _channel(self, event):
+        return min(max(event['track'] - 1, 0), 15)
+
+    def _note_on(self, event):
+        if utils.midiPlayer is None:
+            return
+        ch = self._channel(event)
+        utils.midiPlayer.set_instrument(0, ch)
+        utils.midiPlayer.note_on(event['note'], min(event['velocity'], 127), ch)
+
+    def _note_off(self, event):
+        if utils.midiPlayer is None:
+            return
+        utils.midiPlayer.note_off(event['note'], 0, self._channel(event))
+
+    # ---------- MIDI-подія -> анімація ----------
+    def _trigger(self, event):
+        ring = self.rings[event['note']]
+        ring.visible = True                # note_on: кільце з'являється
+        event['dot'].trigger()             # note_on: точка спалахує
+        self.ripples.append(               # note_on: від кільця йде хвиля
+            Ripple(ring.center, ring.radius,
+                   ring.color,  # колір хвилі = колір кільця
+                   TRACK_RIPPLE_SPEED.get(event['track'], 120)))
+        self._note_on(event)
+        self.active.append((event['start'] + event['duration'], event))
+
+    def restart(self):
+        for _, event in self.active:
+            self._note_off(event)
+        self.active = []
+        self.ripples = []
+        self.time = 0.0
+        self.next_event = 0
+        for ring in self.rings.values():
+            ring.reset()
 
     def update(self):
-        self.showTimeInterval += utils.deltaTime()
-        for i, showTime in enumerate(self.showTimeList.values()):
-            if showTime < self.showTimeInterval:
-                self.rings[i].showTime = True
-
-        self.time += utils.clock.get_time() / 1000.0
+        dt = utils.deltaTime()
+        self.time += dt
         if self.time >= self.maxTime:
-            self.time = 0
-            for ring in self.rings:
-                ring.reset()
-        for ring in self.rings:
-            ring.update(self.time)
+            self.restart()
+
+        # запускаємо всі події, час яких настав
+        while (self.next_event < len(self.events)
+               and self.events[self.next_event]['start'] <= self.time):
+            self._trigger(self.events[self.next_event])
+            self.next_event += 1
+
+        # note_off: вимикаємо ноти, тривалість яких закінчилась
+        still_active = []
+        for end, event in self.active:
+            if end <= self.time:
+                self._note_off(event)
+            else:
+                still_active.append((end, event))
+        self.active = still_active
+
+        for ring in self.rings.values():
+            ring.update(self.time, dt)
+        for r in self.ripples:
+            r.update(dt)
+        self.ripples = [r for r in self.ripples if r.alive()]
 
     def draw(self):
-        for ring in self.rings:
+        for ring in self.rings.values():
             ring.draw()
+        for r in self.ripples:
+            r.draw()
